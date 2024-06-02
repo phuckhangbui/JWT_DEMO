@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
+using Newtonsoft.Json;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -21,19 +22,21 @@ namespace JWT_DEMO.Controllers
         [HttpPost("login")]
         public IActionResult Login([FromBody] UserLogin model)
         {
+            var user = GetUser(model);
             // Validate user credentials
-            if (IsValidUserCredentials(model))
+            if (user != null)
             {
-                var token = GenerateJwtToken(model.Username);
+                var token = GenerateJwtToken(user.Username, user.Role);
                 return Ok(new { Token = token });
             }
             return Unauthorized();
         }
 
-        private string GenerateJwtToken(string username)
+        private string GenerateJwtToken(string username, string role)
         {
             var claims = new[]
             {
+            new Claim("Role", role),
             new Claim(JwtRegisteredClaimNames.Sub, username),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
@@ -51,10 +54,13 @@ namespace JWT_DEMO.Controllers
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
-        private bool IsValidUserCredentials(UserLogin model)
+        private User GetUser(UserLogin model)
         {
-            // Validate user credentials (this is just a sample)
-            return model.Username == "testuser" && model.Password == "password";
+            using StreamReader reader = new("./user.json");
+            var json = reader.ReadToEnd();
+            List<User> users = JsonConvert.DeserializeObject<List<User>>(json);
+
+            return users.FirstOrDefault(u => u.Username == model.Username && u.Password == model.Password);
         }
     }
 
